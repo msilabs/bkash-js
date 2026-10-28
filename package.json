@@ -3,6 +3,25 @@
   "version": "0.1.0",
   "description": "Server-side bKash Tokenized Checkout v2 client for Node, Bun, Deno and edge runtimes.",
   "license": "MIT",
+  "author": "msisaif <msi313.bd@gmail.com>",
+  "homepage": "https://github.com/msilabs/bkash-js#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/msilabs/bkash-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/msilabs/bkash-js/issues"
+  },
+  "keywords": [
+    "bkash",
+    "bangladesh",
+    "payment",
+    "tokenized-checkout",
+    "payment-gateway"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "sideEffects": false,
   "files": [
@@ -24,7 +43,8 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
