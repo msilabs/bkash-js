@@ -36,10 +36,13 @@ const payment = await bkash.createPayment(500, 'INV-1001', 'https://example.com/
 - A response object with `isCompleted()`, `redirectUrl()`, `errorMessage()` and Bangla error messages
 - Optional API logging with secrets masked
 - ESM and CommonJS builds, with TypeScript types
+- Works with any server-side framework: Express, NestJS, Next.js, Nuxt, SvelteKit, Hono, Cloudflare Workers and more
 
 ## Requirements
 
 Node.js 22 or newer. The package uses only `fetch` and Web Crypto, so it also runs on Bun, Deno and edge runtimes.
+
+Use it on the server only. It needs your app secret and password, so never import it in browser, mobile or desktop client code.
 
 ## Installation
 
@@ -116,6 +119,150 @@ await bkash.executePaymentWithAgreement(paymentId, agreementId)
 await bkash.queryAgreement(agreementId)
 await bkash.cancelAgreement(agreementId)
 ```
+
+## Using with Frameworks
+
+The client has no framework code. Create it once in a shared module and call it from your routes:
+
+```ts
+// lib/bkash.ts
+import { BkashClient } from '@msilabs/bkash'
+
+export const bkash = new BkashClient('primary', {
+  sandbox: process.env.BKASH_SANDBOX !== 'false',
+  appKey: process.env.BKASH_APP_KEY!,
+  appSecret: process.env.BKASH_APP_SECRET!,
+  username: process.env.BKASH_USERNAME!,
+  password: process.env.BKASH_PASSWORD!,
+})
+
+export async function confirmPayment(paymentId: string, status: string): Promise<boolean> {
+  if (status !== 'success') {
+    return false
+  }
+
+  const result = await bkash.executePayment(paymentId).catch(() => bkash.queryPayment(paymentId))
+
+  // mark the order paid here when result.isCompleted()
+  return result.isCompleted()
+}
+```
+
+### Express
+
+```ts
+import express from 'express'
+import { bkash, confirmPayment } from './lib/bkash'
+
+const app = express()
+
+app.post('/checkout/:orderId', async (req, res) => {
+  const order = await findOrder(req.params.orderId)
+  const payment = await bkash.createPayment(order.total, order.invoice, 'https://example.com/bkash/callback')
+
+  if (payment.failed()) {
+    return res.status(502).send(payment.errorMessage())
+  }
+
+  await saveBkashPaymentId(order, payment.data.paymentId)
+  res.redirect(303, payment.redirectUrl()!)
+})
+
+app.get('/bkash/callback', async (req, res) => {
+  const paid = await confirmPayment(String(req.query.paymentId), String(req.query.status))
+
+  res.redirect(paid ? '/orders/thank-you' : '/orders/failed')
+})
+```
+
+Fastify, Koa, Hapi and NestJS work the same way: read `paymentId` and `status` from the callback query and call `confirmPayment()`.
+
+### Next.js (App Router)
+
+```ts
+// app/bkash/callback/route.ts
+import { redirect } from 'next/navigation'
+import { confirmPayment } from '@/lib/bkash'
+
+export async function GET(request: Request) {
+  const params = new URL(request.url).searchParams
+  const paid = await confirmPayment(params.get('paymentId') ?? '', params.get('status') ?? '')
+
+  redirect(paid ? '/orders/thank-you' : '/orders/failed')
+}
+```
+
+Call the client only from Route Handlers, Server Actions and Server Components. Adding `import 'server-only'` to `lib/bkash.ts` makes the build fail if a client component imports it.
+
+### Hono on Cloudflare Workers
+
+Workers have no `process.env`, and each isolate has its own memory, so build the client from `env` and keep tokens in KV:
+
+```ts
+import { Hono } from 'hono'
+import { BkashClient, type TokenStore } from '@msilabs/bkash'
+
+type Env = {
+  BKASH_APP_KEY: string
+  BKASH_APP_SECRET: string
+  BKASH_USERNAME: string
+  BKASH_PASSWORD: string
+  BKASH_TOKENS: KVNamespace
+}
+
+function bkash(env: Env): BkashClient {
+  const tokenStore: TokenStore = {
+    get: async (key) => (await env.BKASH_TOKENS.get(key)) ?? undefined,
+    set: (key, value, ttlSeconds) => env.BKASH_TOKENS.put(key, value, { expirationTtl: ttlSeconds }),
+    delete: (key) => env.BKASH_TOKENS.delete(key),
+  }
+
+  return new BkashClient(
+    'primary',
+    {
+      sandbox: true,
+      appKey: env.BKASH_APP_KEY,
+      appSecret: env.BKASH_APP_SECRET,
+      username: env.BKASH_USERNAME,
+      password: env.BKASH_PASSWORD,
+    },
+    { tokenStore },
+  )
+}
+
+const app = new Hono<{ Bindings: Env }>()
+
+app.get('/bkash/callback', async (c) => {
+  const client = bkash(c.env)
+  const paymentId = c.req.query('paymentId') ?? ''
+
+  if (c.req.query('status') !== 'success') {
+    return c.redirect('/orders/failed')
+  }
+
+  const result = await client.executePayment(paymentId).catch(() => client.queryPayment(paymentId))
+
+  return c.redirect(result.isCompleted() ? '/orders/thank-you' : '/orders/failed')
+})
+
+export default app
+```
+
+The same code runs on Hono with Bun, Deno or Node, where a module-level client like `lib/bkash.ts` is fine.
+
+### Other Frameworks
+
+| Framework | Where the client goes |
+|---|---|
+| Nuxt | `server/api/` routes |
+| SvelteKit | `+server.ts` and `+page.server.ts` |
+| Remix / React Router | `loader` and `action` |
+| Astro | SSR endpoints |
+| Elysia, Fresh, Oak | route handlers |
+| AWS Lambda, Vercel and Netlify Functions | the function handler, with a shared [token store](#token-store) |
+| Strapi, Medusa, Payload | a custom service or plugin |
+
+In serverless and edge apps every cold start has an empty memory cache, so pass a shared [token store](#token-store) to avoid a token grant on each start.
 
 ## Multiple Merchants
 
