@@ -1,4 +1,5 @@
 import { BkashError } from './errors'
+import { formatAmount } from './mask'
 
 type Data = Record<string, any>
 
@@ -73,6 +74,37 @@ export class BkashResponse {
 
   invoiceNumber(): string | null {
     return this.data.merchantInvoiceNumber ?? this.data.merchantInvoice ?? null
+  }
+
+  paymentId(): string | null {
+    return this.data.paymentId ?? this.data.paymentID ?? null
+  }
+
+  trxId(): string | null {
+    return this.data.trxId ?? this.data.trxID ?? null
+  }
+
+  agreementId(): string | null {
+    return this.data.agreementId ?? this.data.agreementID ?? null
+  }
+
+  amount(): string | null {
+    return this.data.amount != null ? String(this.data.amount) : null
+  }
+
+  /** True when bKash reports the same amount, so "500", 500 and "500.00" all match. */
+  amountMatches(expected: string | number): boolean {
+    const actual = this.amount()
+
+    if (actual == null) {
+      return false
+    }
+
+    try {
+      return formatAmount(actual) === formatAmount(expected)
+    } catch {
+      return false
+    }
   }
 
   get<T = unknown>(path: string, defaultValue?: T): T | undefined {

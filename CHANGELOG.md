@@ -4,15 +4,22 @@ All notable changes to `@msilabs/bkash` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.0.0] - 2026-10-29
+
+The first stable release. See [Upgrading from 0.x](README.md#upgrading-from-0x) for the changes to make.
 
 ### Added
 
-- README section on using the client with Express, Next.js, Hono on Cloudflare Workers and other frameworks.
+- `confirmPayment()` and `confirmPaymentWithAgreement()`: execute the payment, and ask bKash for its real status with `queryPayment()` when execute fails or times out.
+- `parseCallback()` reads `status`, `paymentId` and `agreementId` from the callback query (a URL, `URLSearchParams` or a parsed query object), in either ID casing.
+- `BkashResponse` methods `paymentId()`, `trxId()`, `agreementId()`, `amount()` and `amountMatches()`.
+- Exported parameter types: `CreatePaymentParams`, `CreateAgreementParams`, `CreatePaymentWithAgreementParams`, `PaymentWithAgreementParams`, `RefundParams`, `RefundStatusParams`, `Amount`, `BkashCallback` and `BkashCallbackInput`.
+- README: a copy-paste prompt for AI coding agents, a guide for Express, Next.js, Hono on Cloudflare Workers and other frameworks, a going-live checklist and an upgrade guide.
 
 ### Changed
 
-- The `BkashClient` constructor now requires a full `BkashAccount`, so a missing credential is a type error.
+- **Breaking:** methods that take more than one value now take a single object: `createPayment()`, `createAgreement()`, `createPaymentWithAgreement()`, `executePaymentWithAgreement()`, `refund()` and `refundStatus()`.
+- **Breaking:** the `BkashClient` constructor requires a full `BkashAccount`, so a missing credential is a type error.
 - Node.js requirement relaxed to 22 or newer.
 - Logs now also mask the app key, a phone-number `payerReference`, and secrets in nested objects.
 
@@ -21,7 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A network error on token refresh falls back to a new grant instead of throwing.
 - A bKash outage (HTTP 5xx) during a token request no longer deletes the cached refresh token.
 - `formatAmount()` rejects zero, hex (`0x10`) and exponent (`1e3`) amounts.
-- README examples use the v2 field names (`paymentId`, `trxId`, `agreementId`) and show querying a payment after an execute timeout.
+- README examples use the v2 field names (`paymentId`, `trxId`, `agreementId`).
 
 ## [0.1.0] - 2026-10-28
 

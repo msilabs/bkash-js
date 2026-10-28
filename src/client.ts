@@ -2,7 +2,16 @@ import { BkashError } from './errors'
 import { formatAmount, mask } from './mask'
 import { BkashResponse } from './response'
 import { MemoryTokenStore, type TokenStore } from './token-store'
-import type { BkashAccount, BkashClientOptions } from './types'
+import type {
+  BkashAccount,
+  BkashClientOptions,
+  CreateAgreementParams,
+  CreatePaymentParams,
+  CreatePaymentWithAgreementParams,
+  PaymentWithAgreementParams,
+  RefundParams,
+  RefundStatusParams,
+} from './types'
 
 export const DEFAULT_URLS = {
   sandbox: 'https://tokenized.sandbox.bka.sh/v2',
@@ -46,21 +55,15 @@ export class BkashClient {
    * Payment (without agreement)
    */
 
-  createPayment(
-    amount: string | number,
-    invoiceNumber: string,
-    callbackUrl: string,
-    payerReference?: string,
-    extra: Record<string, unknown> = {},
-  ): Promise<BkashResponse> {
+  createPayment(params: CreatePaymentParams): Promise<BkashResponse> {
     return this.call('payment/create', {
-      payerReference: payerReference ?? invoiceNumber,
-      callbackURL: callbackUrl,
-      amount: formatAmount(amount),
+      payerReference: params.payerReference ?? params.invoiceNumber,
+      callbackURL: params.callbackUrl,
+      amount: formatAmount(params.amount),
       currency: 'BDT',
       intent: 'sale',
-      merchantInvoiceNumber: invoiceNumber,
-      ...extra,
+      merchantInvoiceNumber: params.invoiceNumber,
+      ...params.extra,
     })
   }
 
@@ -68,12 +71,20 @@ export class BkashClient {
     return this.call('payment/execute', { paymentId })
   }
 
+  /** Execute the payment, and ask bKash for its real status if execute fails or times out. */
+  confirmPayment(paymentId: string): Promise<BkashResponse> {
+    return this.confirm(paymentId, () => this.executePayment(paymentId))
+  }
+
   /*
    * Agreement (one-click payment)
    */
 
-  createAgreement(payerReference: string, callbackUrl: string): Promise<BkashResponse> {
-    return this.call('agreement/create', { payerReference, callbackURL: callbackUrl })
+  createAgreement(params: CreateAgreementParams): Promise<BkashResponse> {
+    return this.call('agreement/create', {
+      payerReference: params.payerReference,
+      callbackURL: params.callbackUrl,
+    })
   }
 
   executeAgreement(agreementId: string): Promise<BkashResponse> {
@@ -88,26 +99,28 @@ export class BkashClient {
     return this.call('agreement/cancel', { agreementId })
   }
 
-  createPaymentWithAgreement(
-    agreementId: string,
-    amount: string | number,
-    invoiceNumber: string,
-    callbackUrl: string,
-    extra: Record<string, unknown> = {},
-  ): Promise<BkashResponse> {
+  createPaymentWithAgreement(params: CreatePaymentWithAgreementParams): Promise<BkashResponse> {
     return this.call('payment-with-agreement/create', {
-      agreementId,
-      callbackURL: callbackUrl,
-      amount: formatAmount(amount),
+      agreementId: params.agreementId,
+      callbackURL: params.callbackUrl,
+      amount: formatAmount(params.amount),
       currency: 'BDT',
       intent: 'sale',
-      merchantInvoiceNumber: invoiceNumber,
-      ...extra,
+      merchantInvoiceNumber: params.invoiceNumber,
+      ...params.extra,
     })
   }
 
-  executePaymentWithAgreement(paymentId: string, agreementId: string): Promise<BkashResponse> {
-    return this.call('payment-with-agreement/execute', { paymentId, agreementId })
+  executePaymentWithAgreement(params: PaymentWithAgreementParams): Promise<BkashResponse> {
+    return this.call('payment-with-agreement/execute', {
+      paymentId: params.paymentId,
+      agreementId: params.agreementId,
+    })
+  }
+
+  /** Like `confirmPayment()`, for a payment made with an agreement. */
+  confirmPaymentWithAgreement(params: PaymentWithAgreementParams): Promise<BkashResponse> {
+    return this.confirm(params.paymentId, () => this.executePaymentWithAgreement(params))
   }
 
   /*
@@ -126,24 +139,40 @@ export class BkashClient {
    * Refund
    */
 
-  refund(
-    paymentId: string,
-    trxId: string,
-    amount: string | number,
-    reason: string,
-    sku = 'N/A',
-  ): Promise<BkashResponse> {
+  refund(params: RefundParams): Promise<BkashResponse> {
     return this.call('refund/payment/transaction', {
-      paymentId,
-      trxId,
-      refundAmount: formatAmount(amount),
-      sku,
-      reason,
+      paymentId: params.paymentId,
+      trxId: params.trxId,
+      refundAmount: formatAmount(params.amount),
+      sku: params.sku ?? 'N/A',
+      reason: params.reason,
     })
   }
 
-  refundStatus(paymentId: string, trxId: string): Promise<BkashResponse> {
-    return this.call('refund/payment/status', { paymentId, trxId })
+  refundStatus(params: RefundStatusParams): Promise<BkashResponse> {
+    return this.call('refund/payment/status', { paymentId: params.paymentId, trxId: params.trxId })
+  }
+
+  // A timed-out or failed execute may still have taken the money, so the query result decides.
+  private async confirm(paymentId: string, execute: () => Promise<BkashResponse>): Promise<BkashResponse> {
+    let executed: BkashResponse | null = null
+
+    try {
+      executed = await execute()
+
+      if (executed.isCompleted()) {
+        return executed
+      }
+    } catch (error) {
+      if (!(error instanceof BkashError)) {
+        throw error
+      }
+    }
+
+    const queried = await this.queryPayment(paymentId)
+
+    // Keep the execute error (e.g. insufficient balance) unless the query shows the payment went through.
+    return queried.isCompleted() || !executed ? queried : executed
   }
 
   /*
