@@ -62,6 +62,27 @@ describe('BkashResponse', () => {
     expect(new BkashResponse({ merchantInvoiceNumber: 'N' }).invoiceNumber()).toBe('N')
   })
 
+  it('reads ids in either casing', () => {
+    const camel = new BkashResponse({ paymentId: 'P1', trxId: 'T1', agreementId: 'A1' })
+    const upper = new BkashResponse({ paymentID: 'P2', trxID: 'T2', agreementID: 'A2' })
+
+    expect([camel.paymentId(), camel.trxId(), camel.agreementId()]).toEqual(['P1', 'T1', 'A1'])
+    expect([upper.paymentId(), upper.trxId(), upper.agreementId()]).toEqual(['P2', 'T2', 'A2'])
+    expect(new BkashResponse({}).paymentId()).toBeNull()
+  })
+
+  it('compares the paid amount', () => {
+    const res = new BkashResponse({ amount: '500.00' })
+
+    expect(res.amount()).toBe('500.00')
+    expect(res.amountMatches(500)).toBe(true)
+    expect(res.amountMatches('500')).toBe(true)
+    expect(res.amountMatches(499.99)).toBe(false)
+    expect(new BkashResponse({ amount: 500 }).amountMatches('500.00')).toBe(true)
+    expect(new BkashResponse({}).amountMatches(500)).toBe(false)
+    expect(new BkashResponse({ amount: 'n/a' }).amountMatches(500)).toBe(false)
+  })
+
   it('gets nested values with a default', () => {
     const res = new BkashResponse({ a: { b: 1 } })
 
