@@ -4,6 +4,12 @@ All notable changes to `@msilabs/bkash` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-10-29
+
+### Changed
+
+- Releases are published from GitHub Actions through npm trusted publishing (OIDC) and staged publishing, so every version needs a maintainer's 2FA approval before it goes live. No code changes.
+
 ## [1.0.0] - 2026-10-29
 
 The first stable release. See [Upgrading from 0.x](README.md#upgrading-from-0x) for the changes to make.
