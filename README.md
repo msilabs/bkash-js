@@ -1,9 +1,22 @@
 <p align="center">
-  <a href="https://www.npmjs.com/package/@msilabs/bkash"><img src="https://img.shields.io/npm/dm/@msilabs/bkash" alt="Monthly Downloads"></a>
-  <a href="https://www.npmjs.com/package/@msilabs/bkash"><img src="https://img.shields.io/npm/v/@msilabs/bkash" alt="Latest Stable Version"></a>
-  <a href="https://github.com/msilabs/bkash-js/actions/workflows/tests.yml"><img src="https://github.com/msilabs/bkash-js/actions/workflows/tests.yml/badge.svg?branch=main" alt="Tests"></a>
-  <a href="https://www.npmjs.com/package/@msilabs/bkash"><img src="https://img.shields.io/npm/l/@msilabs/bkash" alt="License"></a>
-  <a href="https://github.com/msilabs/bkash-js"><img src="https://img.shields.io/github/stars/msilabs/bkash-js" alt="GitHub Stars"></a>
+  <a href="https://www.npmjs.com/package/@msilabs/bkash">
+    <img src="https://img.shields.io/npm/dm/@msilabs/bkash" alt="Monthly Downloads">
+  </a>
+  <a href="https://www.npmjs.com/package/@msilabs/bkash">
+    <img src="https://img.shields.io/npm/v/@msilabs/bkash" alt="Latest Stable Version">
+  </a>
+  <a href="https://github.com/msilabs/bkash-js/actions/workflows/tests.yml">
+    <img src="https://github.com/msilabs/bkash-js/actions/workflows/tests.yml/badge.svg?branch=main" alt="Tests">
+  </a>
+  <a href="https://socket.dev/npm/package/@msilabs/bkash">
+    <img src="https://socket.dev/api/badge/npm/package/@msilabs/bkash" alt="Socket Security">
+  </a>
+  <a href="https://www.npmjs.com/package/@msilabs/bkash">
+    <img src="https://img.shields.io/npm/l/@msilabs/bkash" alt="License">
+  </a>
+  <a href="https://github.com/msilabs/bkash-js">
+    <img src="https://img.shields.io/github/stars/msilabs/bkash-js" alt="GitHub Stars">
+  </a>
 </p>
 
 # @msilabs/bkash
