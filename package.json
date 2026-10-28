@@ -1,6 +1,6 @@
 {
   "name": "@msilabs/bkash",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Server-side bKash Tokenized Checkout v2 client for Node, Bun, Deno and edge runtimes.",
   "license": "MIT",
   "author": "msisaif <msi313.bd@gmail.com>",
