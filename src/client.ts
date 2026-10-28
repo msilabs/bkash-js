@@ -1,5 +1,5 @@
 import { BkashError } from './errors'
-import { mask } from './mask'
+import { formatAmount, mask } from './mask'
 import { BkashResponse } from './response'
 import { MemoryTokenStore, type TokenStore } from './token-store'
 import type { BkashAccount, BkashClientOptions } from './types'
@@ -40,6 +40,110 @@ export class BkashClient {
     const url = this.account.baseUrl ?? (this.isSandbox() ? urls.sandbox : urls.production)
 
     return url.replace(/\/+$/, '')
+  }
+
+  /*
+   * Payment (without agreement)
+   */
+
+  createPayment(
+    amount: string | number,
+    invoiceNumber: string,
+    callbackUrl: string,
+    payerReference?: string,
+    extra: Record<string, unknown> = {},
+  ): Promise<BkashResponse> {
+    return this.call('payment/create', {
+      payerReference: payerReference ?? invoiceNumber,
+      callbackURL: callbackUrl,
+      amount: formatAmount(amount),
+      currency: 'BDT',
+      intent: 'sale',
+      merchantInvoiceNumber: invoiceNumber,
+      ...extra,
+    })
+  }
+
+  executePayment(paymentId: string): Promise<BkashResponse> {
+    return this.call('payment/execute', { paymentId })
+  }
+
+  /*
+   * Agreement (one-click payment)
+   */
+
+  createAgreement(payerReference: string, callbackUrl: string): Promise<BkashResponse> {
+    return this.call('agreement/create', { payerReference, callbackURL: callbackUrl })
+  }
+
+  executeAgreement(agreementId: string): Promise<BkashResponse> {
+    return this.call('agreement/execute', { agreementId })
+  }
+
+  queryAgreement(agreementId: string): Promise<BkashResponse> {
+    return this.call('query/agreement', { agreementId })
+  }
+
+  cancelAgreement(agreementId: string): Promise<BkashResponse> {
+    return this.call('agreement/cancel', { agreementId })
+  }
+
+  createPaymentWithAgreement(
+    agreementId: string,
+    amount: string | number,
+    invoiceNumber: string,
+    callbackUrl: string,
+    extra: Record<string, unknown> = {},
+  ): Promise<BkashResponse> {
+    return this.call('payment-with-agreement/create', {
+      agreementId,
+      callbackURL: callbackUrl,
+      amount: formatAmount(amount),
+      currency: 'BDT',
+      intent: 'sale',
+      merchantInvoiceNumber: invoiceNumber,
+      ...extra,
+    })
+  }
+
+  executePaymentWithAgreement(paymentId: string, agreementId: string): Promise<BkashResponse> {
+    return this.call('payment-with-agreement/execute', { paymentId, agreementId })
+  }
+
+  /*
+   * Query & Search
+   */
+
+  queryPayment(paymentId: string): Promise<BkashResponse> {
+    return this.call('query/payment', { paymentId })
+  }
+
+  searchTransaction(trxId: string): Promise<BkashResponse> {
+    return this.call('general/search-transaction', { trxId })
+  }
+
+  /*
+   * Refund
+   */
+
+  refund(
+    paymentId: string,
+    trxId: string,
+    amount: string | number,
+    reason: string,
+    sku = 'N/A',
+  ): Promise<BkashResponse> {
+    return this.call('refund/payment/transaction', {
+      paymentId,
+      trxId,
+      refundAmount: formatAmount(amount),
+      sku,
+      reason,
+    })
+  }
+
+  refundStatus(paymentId: string, trxId: string): Promise<BkashResponse> {
+    return this.call('refund/payment/status', { paymentId, trxId })
   }
 
   /*
