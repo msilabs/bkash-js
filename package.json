@@ -17,7 +17,15 @@
     "bangladesh",
     "payment",
     "tokenized-checkout",
-    "payment-gateway"
+    "payment-gateway",
+    "typescript",
+    "nodejs",
+    "express",
+    "nextjs",
+    "hono",
+    "cloudflare-workers",
+    "bun",
+    "deno"
   ],
   "publishConfig": {
     "access": "public"

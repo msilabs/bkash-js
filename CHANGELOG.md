@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- README section on using the client with Express, Next.js, Hono on Cloudflare Workers and other frameworks.
+
 ### Changed
 
 - The `BkashClient` constructor now requires a full `BkashAccount`, so a missing credential is a type error.
