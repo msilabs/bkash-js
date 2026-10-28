@@ -38,7 +38,7 @@ const last = () => calls[calls.length - 1]!
 
 describe('payment', () => {
   it('creates a payment with a formatted amount', async () => {
-    replies['payment/create'] = { paymentID: 'P1', bkashURL: 'https://pay' }
+    replies['payment/create'] = { paymentId: 'P1', bkashURL: 'https://pay' }
 
     const response = await new BkashClient('primary', account).createPayment(500, 'INV-1', 'https://cb')
 
@@ -67,7 +67,7 @@ describe('payment', () => {
   })
 
   it('executes a payment', async () => {
-    replies['payment/execute'] = { trxID: 'TRX1', transactionStatus: 'Completed' }
+    replies['payment/execute'] = { trxId: 'TRX1', transactionStatus: 'Completed' }
 
     const response = await new BkashClient('primary', account).executePayment('P1')
 
@@ -78,7 +78,7 @@ describe('payment', () => {
 
 describe('agreement', () => {
   it('creates an agreement', async () => {
-    replies['agreement/create'] = { paymentID: 'P1', agreementStatus: 'Initiated', bkashURL: 'https://pay' }
+    replies['agreement/create'] = { paymentId: 'P1', agreementStatus: 'Initiated', bkashURL: 'https://pay' }
 
     const response = await new BkashClient('primary', account).createAgreement('01700000000', 'https://cb')
 
@@ -87,9 +87,9 @@ describe('agreement', () => {
   })
 
   it('executes, queries and cancels an agreement', async () => {
-    replies['agreement/execute'] = { agreementID: 'A1', agreementStatus: 'Completed' }
-    replies['query/agreement'] = { agreementID: 'A1', agreementStatus: 'Completed' }
-    replies['agreement/cancel'] = { agreementID: 'A1', agreementStatus: 'Cancelled' }
+    replies['agreement/execute'] = { agreementId: 'A1', agreementStatus: 'Completed' }
+    replies['query/agreement'] = { agreementId: 'A1', agreementStatus: 'Completed' }
+    replies['agreement/cancel'] = { agreementId: 'A1', agreementStatus: 'Cancelled' }
 
     const client = new BkashClient('primary', account)
 
@@ -103,7 +103,7 @@ describe('agreement', () => {
   })
 
   it('pays with an agreement', async () => {
-    replies['payment-with-agreement/execute'] = { trxID: 'TRX2', transactionStatus: 'Completed' }
+    replies['payment-with-agreement/execute'] = { trxId: 'TRX2', transactionStatus: 'Completed' }
 
     const client = new BkashClient('primary', account)
 

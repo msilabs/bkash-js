@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { BkashClient, BkashError, MemoryTokenStore, type TokenStore } from '../src'
+import { BkashClient, BkashError, MemoryTokenStore, type BkashAccount, type TokenStore } from '../src'
 
 const SANDBOX = 'https://tokenized.sandbox.bka.sh/v2/tokenized-checkout'
 
@@ -168,6 +168,28 @@ describe('token', () => {
     expect(await store.get(await client.key('refresh_token'))).toBeUndefined()
   })
 
+  it('keeps the refresh token when bKash is down', async () => {
+    reply('auth/grant-token', { body: { message: 'Service Unavailable' }, status: 503 })
+    const store = new MemoryTokenStore()
+    const client = new TestClient('primary', account, { tokenStore: store })
+    await store.set(await client.key('refresh_token'), 'good-refresh', 100)
+
+    await expect(client.token(true)).rejects.toThrow(BkashError)
+    expect(await store.get(await client.key('refresh_token'))).toBe('good-refresh')
+  })
+
+  it('falls back to grant when the refresh request has a network error', async () => {
+    reply('auth/grant-token', { body: tokenBody('first-token') }, { body: tokenBody('second-token') })
+    const store = new MemoryTokenStore()
+    const client = new TestClient('primary', account, { tokenStore: store })
+
+    await client.token()
+    await store.delete(await client.key('id_token'))
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('socket hang up'))
+
+    expect(await client.token()).toBe('second-token')
+  })
+
   it('throws when a credential is missing', async () => {
     const client = new BkashClient('primary', { ...account, appKey: '' })
 
@@ -176,7 +198,7 @@ describe('token', () => {
   })
 
   it('throws when credential keys are absent', async () => {
-    const client = new BkashClient('custom', { sandbox: true })
+    const client = new BkashClient('custom', { sandbox: true } as BkashAccount)
 
     await expect(client.token()).rejects.toThrow('bKash account [custom] is missing [app_key].')
   })
@@ -321,7 +343,7 @@ describe('request pipeline', () => {
     ])
 
     const logged = JSON.stringify(logger.mock.calls)
-    for (const secret of ['primary-secret', 'primary-pass', 'primary-user', 'test-token', 'test-refresh', '01712345678']) {
+    for (const secret of ['primary-key', 'primary-secret', 'primary-pass', 'primary-user', 'test-token', 'test-refresh', '01712345678']) {
       expect(logged).not.toContain(secret)
     }
     expect(logged).toContain('*******5678')

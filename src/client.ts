@@ -20,7 +20,7 @@ export class BkashClient {
 
   constructor(
     protected readonly accountName: string,
-    protected readonly account: Partial<BkashAccount>,
+    protected readonly account: BkashAccount,
     protected readonly options: BkashClientOptions = {},
   ) {
     this.store = options.tokenStore ?? new MemoryTokenStore()
@@ -206,7 +206,14 @@ export class BkashClient {
     let response: BkashResponse | null = null
 
     if (refreshToken) {
-      response = await this.requestToken('auth/refresh-token', { refresh_token: refreshToken })
+      try {
+        response = await this.requestToken('auth/refresh-token', { refresh_token: refreshToken })
+      } catch (error) {
+        // A network error on refresh should not block a new grant.
+        if (!(error instanceof BkashError) || error.response) {
+          throw error
+        }
+      }
     }
 
     if (!response || response.failed() || !response.data.id_token) {
@@ -214,7 +221,12 @@ export class BkashClient {
     }
 
     if (response.failed() || !response.data.id_token) {
-      await this.forgetToken()
+      // A bKash outage (5xx) says nothing about the cached refresh token, so keep it.
+      if (response.status >= 500) {
+        await this.store.delete(await this.cacheKey('id_token'))
+      } else {
+        await this.forgetToken()
+      }
 
       throw new BkashError(
         `Unable to get bKash token for account [${this.accountName}]: ${response.errorMessage()}`,
@@ -252,7 +264,7 @@ export class BkashClient {
     return this.send(
       endpoint,
       { app_key: credentials.app_key, app_secret: credentials.app_secret, ...payload },
-      { username: credentials.username!, password: credentials.password! },
+      { username: credentials.username, password: credentials.password },
     )
   }
 
@@ -274,7 +286,7 @@ export class BkashClient {
   private authHeaders(token: string): Record<string, string> {
     return {
       Authorization: token,
-      'X-App-Key': this.account.appKey ?? '',
+      'X-App-Key': this.account.appKey,
     }
   }
 
@@ -353,7 +365,7 @@ export class BkashClient {
 
   protected cacheKey(suffix: string): Promise<string> {
     this.identity ??= sha256Hex(
-      `${this.baseUrl()}|${this.account.appKey ?? ''}|${this.account.username ?? ''}`,
+      `${this.baseUrl()}|${this.account.appKey}|${this.account.username}`,
     ).then((hash) => hash.slice(0, 16))
 
     const prefix = this.options.cachePrefix ?? 'bkash'

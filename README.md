@@ -39,7 +39,7 @@ const payment = await bkash.createPayment(500, 'INV-1001', 'https://example.com/
 
 ## Requirements
 
-Node.js `^22.23.4`, `^24.22.1` or `>=26.12.1`. Older Node versions are end-of-life. The package uses only `fetch` and Web Crypto, so it also runs on Bun, Deno and edge runtimes.
+Node.js 22 or newer. The package uses only `fetch` and Web Crypto, so it also runs on Bun, Deno and edge runtimes.
 
 ## Installation
 
@@ -61,19 +61,22 @@ if (payment.failed()) {
 return redirect(payment.redirectUrl()!)
 ```
 
-**2. Execute it in your callback.** bKash calls `callbackUrl` with `paymentID` and `status`:
+**2. Execute it in your callback.** bKash calls `callbackUrl` with `paymentId` and `status`:
 
 ```ts
 if (status !== 'success') {
   // the customer cancelled or the payment failed
 }
 
-const result = await bkash.executePayment(paymentID)
+// a timeout does not mean the payment failed: ask bKash before deciding
+const result = await bkash.executePayment(paymentId).catch(() => bkash.queryPayment(paymentId))
 
 if (result.isCompleted()) {
-  // result.data.trxID, result.invoiceNumber()
+  // result.data.trxId, result.invoiceNumber()
 }
 ```
+
+Store the `paymentId` when you create the payment and look the order up by it in the callback. Never trust the amount or invoice number from the callback URL. Use `queryPayment()` to reconcile orders left pending when a customer closed the browser before the callback.
 
 Amounts can be a number or a string. They are sent with two decimals.
 
@@ -102,13 +105,13 @@ With an agreement, a returning customer pays with only their PIN, with no OTP.
 const agreement = await bkash.createAgreement('01700000000', agreementCallbackUrl)
 // redirect to agreement.redirectUrl()
 
-// 2. in the callback, then store agreementID
-const done = await bkash.executeAgreement(paymentID)
+// 2. in the callback (query has agreementId and status), then store done.data.agreementId
+const done = await bkash.executeAgreement(agreementId)
 
 // 3. later payments
 const payment = await bkash.createPaymentWithAgreement(agreementId, 200, 'INV-1002', callbackUrl)
 // redirect to payment.redirectUrl(), then in the callback:
-await bkash.executePaymentWithAgreement(paymentID, agreementId)
+await bkash.executePaymentWithAgreement(paymentId, agreementId)
 
 await bkash.queryAgreement(agreementId)
 await bkash.cancelAgreement(agreementId)
@@ -150,7 +153,7 @@ bKash business errors (for example insufficient balance) come back as a failed r
 import { BkashError } from '@msilabs/bkash'
 
 try {
-  const result = (await bkash.executePayment(paymentID)).throw()
+  const result = (await bkash.executePayment(paymentId)).throw()
 } catch (error) {
   if (error instanceof BkashError) {
     console.error(error.errorCode, error.message)
@@ -192,7 +195,7 @@ The client refreshes the token with the refresh token, falls back to a new grant
 
 ## Logging
 
-When `log.enabled` is true, each request and response goes to your `logger`. Credentials, tokens and customer wallet numbers are masked.
+When `log.enabled` is true, each request and response goes to your `logger`. Credentials, the app key, tokens and customer wallet numbers (including a phone-number `payerReference`) are masked, in nested objects too.
 
 ## Going Live
 
